@@ -1,5 +1,5 @@
 <?php
-namespace action;
+namespace http\action;
 use Inflector;
 use http\Request;
 use http\Response;

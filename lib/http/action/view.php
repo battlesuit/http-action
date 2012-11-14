@@ -1,5 +1,5 @@
 <?php
-namespace action;
+namespace http\action;
 use display\Template;
 
 class View {
@@ -48,7 +48,7 @@ class View {
   
   function render($options, array $assignments = array()) {
     self::$render_instance = $this;
-    include_once __DIR__."/../display/functions.php";
+    include_once __DIR__."/../../display/functions.php";
     
     if(is_string($options)) $template = $options;
     elseif(is_array($options)) extract($options);

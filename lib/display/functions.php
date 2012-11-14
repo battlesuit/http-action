@@ -1,6 +1,6 @@
 <?php
 namespace display {
-  use action\View;
+  use http\action\View;
   use display\html\Helpers;
   
   function view() {
