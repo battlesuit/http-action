@@ -7,6 +7,7 @@ class Presenter extends Controller {
   public $views_dir;
   public $layouts_dir;
   private $view;
+  public $rendered_output;
   
   function view() {
     if(isset($this->view)) return $this->view;
@@ -19,7 +20,7 @@ class Presenter extends Controller {
     if(is_string($options)) $options = array('template' => $options);
     if(!empty($this->layout)) $options['layout'] = $this->layout;
     
-    $output = $this->view()->render($options, array_merge($this->assignments, $assignments));
+    $output = $this->rendered_output = $this->view()->render($options, array_merge($this->assignments, $assignments));
     $this->response->body($output);
     return $this->response;
   }
