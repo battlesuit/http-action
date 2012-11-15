@@ -6,7 +6,5 @@ namespace {
     
     if(file_exists($file)) require $file;
   });
-  
-  if(function_exists('import')) import('http', 'inflector', 'display');
 }
 ?>
