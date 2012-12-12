@@ -1,21 +1,19 @@
 <?php
 namespace http\action;
-use Inflector;
 use http\Request;
 use http\Response;
-use http\TransactionController;
-use display\html\Helpers as Html;
+use http\transaction\Application as Transaction;
 
 /**
- * Handler for request actions
+ * Main handler for request actions
  *
  * PHP Version 5.3+
  * @author Thomas Monzel <tm@apparat-hamburg.de>
  * @version $Revision$
- * @package Suitcase
- * @subpackage Stage
+ * @package Battlesuit
+ * @subpackage http-action
  */
-abstract class Controller extends TransactionController implements \ArrayAccess {
+abstract class Controller {
   
   /**
    * Cached controller name created in name()
@@ -51,14 +49,6 @@ abstract class Controller extends TransactionController implements \ArrayAccess 
   protected $action;
   
   /**
-   * Action assignments
-   *
-   * @access protected
-   * @var array
-   */
-  protected $assignments = array();
-  
-  /**
    * Request data
    *
    * @access protected
@@ -84,6 +74,25 @@ abstract class Controller extends TransactionController implements \ArrayAccess 
   protected $format;
   
   /**
+   * The suffix will be removed from the controller name
+   *
+   * @access protected
+   * @var string
+   */
+  protected $class_suffix = 'Controller';
+  
+  /**
+   * Usable as a transaction processor
+   *
+   * @access public
+   * @param Request $request
+   * @return Response
+   */
+  function __invoke(Request $request) {
+    return static::handle_transaction($request);
+  }
+  
+  /**
    * Returns the underscored controller name
    *
    * @static
@@ -92,76 +101,99 @@ abstract class Controller extends TransactionController implements \ArrayAccess 
    */
   function name() {
     if(isset($this->name)) return $this->name;
-    return $this->name = $this->compose_name();
+    return $this->name = $this->generate_name();
   }
   
   /**
-   * Composes the controllers name
+   * Generates the controllers name
    *
    * @access public
    * @return string
    */
-  protected function compose_name() {
-    $name = Inflector::unqualify(get_class($this), true);
-    $name = preg_replace('/(_controller|_presenter)$/', '', $name);
-    return $name;
+  protected function generate_name() {
+    $name = preg_replace("/$this->class_suffix$/i", '', get_class($this));
+    
+    if(($last_backslash_pos = strrpos($name, '\\')) !== false) {
+      $name = substr($name, $last_backslash_pos+1);
+    }
+
+    return strtolower(preg_replace('/(\p{Ll})(\p{Lu})/', '$1_$2', $name));
   }
   
+  /**
+   * Builds the protected $response property as default
+   * Users can override this one to build their own response instance
+   * This method must always return a instance inherits the Response class
+   *
+   * @access protected
+   * @return Response
+   */
+  protected function build_response() {
+    return new Response();
+  }
+  
+  /**
+   * Constructs a controller instance and calls the process_transaction() method
+   *
+   * @static
+   * @access public
+   * @param Request $request
+   * @return Response
+   */
+  static function handle_transaction(Request $request) {
+    return Transaction::run(array(new static(), 'process_transaction'), $request)->response();
+  }
+  
+  /**
+   * First called method after ::handle_transaction
+   *
+   * @access public
+   * @param Request $request
+   * @return Response
+   */
   function process_transaction(Request $request) {
     $this->request = $request;
-    $response = $this->response = new Response();
+    $this->data = $request->data;
+    $this->response = $response = $this->build_response();
     
-    if(isset($request->data['_action'])) {
-      $this->action = $request->data['_action'];
-    } else trigger_error("No action given: Please set the request data _action parameter");
+    if($this->param_exists('action')) {
+      $this->action = $this->param('action');
+    } else throw new \ErrorException("No action given: Please set the request data _action parameter");
     
-    if(isset($request->data['_format'])) {
-      $this->format = $request->data['_format'];
+    if($this->param_exists('format')) {
+      $this->format = $this->param('format');
     }
     
     # set default content-type
     $response->content_type('text/html');
     
-    $this->data = $request->data;
     $response = $this->process_action($this->action);
     if(!$response) return $this->response;
-    else return $response;
+    elseif(is_string($response)) {
+      $this->response->body($response);
+      $response = $this->response;
+    }
+    
+    return $response;
   }
   
+  /**
+   * Invokes the action and calls the before and after methods
+   *
+   * @access protected
+   * @param string $action
+   * @return mixed
+   */
   protected function process_action($action) {
-    $before_action = array('before_action');
-    $except_before = array();
+    $callbacks = new Callbacks();
     
-    if(!empty($this->before_action)) {
-      $before_action = array_merge($before_action, (array)$this->before_action);
-      
-      if(isset($before_action['except'])) {
-        $except_before = (array)$before_action['except'];
-        unset($before_action['except']);
-      }
+    if(method_exists($this, 'action_callbacks')) {
+      $this->action_callbacks($callbacks);
     }
-    
-    foreach($before_action as $method) {
-      if(array_search($action, $except_before) === false and method_exists($this, $method)) call_user_func(array($this, $method));
-    }
-    
+
+    $callbacks->call('before', $action, $this);
     $returned_result = $this->invoke_action_method($action);
-    
-    $after_action = array('after_action');
-    $except_after = array();
-    
-    if(!empty($this->after_action)) {
-      $after_action = array_merge($after_action, (array)$this->after_action);
-      
-      if(isset($after_action['except'])) {
-        $except_after = (array)$after_action['except'];
-        unset($after_action['except']);
-      }
-    }
-    
-    foreach($after_action as $method) {
-      if(array_search($action, $except_after) === false and method_exists($this, $method)) call_user_func(array($this, $method));
-    }
+    $callbacks->call('after', $action, $this);
     
     return $returned_result;
   }
@@ -175,7 +207,7 @@ abstract class Controller extends TransactionController implements \ArrayAccess 
    */
   protected function invoke_action_method($method) {
     
-    # suffix method name on no existance 
+    # puts _action suffix to method name if method does not exist and tries again 
     if(!method_exists($this, $method)) $method = $method."_action";
     
     # call if method exists
@@ -192,41 +224,36 @@ abstract class Controller extends TransactionController implements \ArrayAccess 
     return $this->request;
   }
   
-  function assignments() {
-    return $this->assignments;
-  }
-  
   /**
-   * Assigns a controller variable
+   * Returns a special data param with leading underscores
    *
    * @access public
    * @param string $name
-   * @param mixed $value
    * @return mixed
    */
-  function assign($name, $value) {
-    return $this->assignments[$name] = $value;
+  function param($name) {
+    return $this->data["_$name"];
   }
   
   /**
-   * Obtains a controller variable
+   * Does a underscored param exists in the data-array
    *
    * @access public
    * @param string $name
-   * @return mixed 
+   * @return boolean
    */
-  function obtain($name) {
-    if(isset($this->assignments[$name])) return $this->assignments[$name];
+  function param_exists($name) {
+    return array_key_exists("_$name", $this->data);
   }
   
   /**
-   * Returns the request environments session instance
-   *
+   * Returns the current action name
+   * 
    * @access public
-   * @return Session
+   * @return string
    */
-  function session() {
-    return $this->request->env['session'];
+  function action() {
+    return $this->action;
   }
   
   /**
@@ -287,22 +314,59 @@ abstract class Controller extends TransactionController implements \ArrayAccess 
   }
   
   /**
-   * 
-   * 
+   * Accepts a given format e.g. xml, html, js, json..
+   *
+   * @access public
+   * @param string $format
+   * @return boolean
    */
   function accept_format($format) {
-    if(isset($this->format) and $this->format == $format) return true;
-    elseif($this->request->accepts_format($format)) return true;
+    if
+    (
+      (isset($this->format) and $this->format == $format) or
+      $this->request->accepts_format($format)
+    ) return true;
     
     return false;
   }
   
-  function base_path() {
-    
+  /**
+   * Returns the current action url
+   *
+   * @access public
+   * @return string
+   */
+  function url() {
+    return $this->request->base_url().$this->path();
   }
   
-  function url_for($to, $options = array()) {
-    $url = $this->request->base_url().$this->base_path();
+  /**
+   * This path gets appended to the requests base_url()
+   * Used to form the full action url
+   *
+   * @access protected
+   * @return string
+   */
+  function path() {
+    if(isset($this->path)) return $this->path;
+    
+    $path = $this->name();
+    if(($dir = dirname(str_replace('\\', '/', get_class($this)))) !== '.') {
+      $path = "$dir/$path";
+    }
+    
+    return $this->path = $path;
+  }
+  
+  /**
+   * Form url for a specific target
+   *
+   * @access public
+   * @param mixed $to
+   * @return string
+   */
+  function url_for($to) {
+    $url = $this->url();
     
     if(is_object($to) and method_exists($to, 'to_path')) {
       $url .= $to->to_path();
@@ -313,38 +377,6 @@ abstract class Controller extends TransactionController implements \ArrayAccess 
     
     return $url;
   }
-
-  /**
-   * Generates an a-tag
-   *
-   * @param string $href
-   * @param string $text
-   * @param array $attributes
-   * @return string
-   */
-  function link_to($to, $options = array(), $attributes = array()) {
-    if(is_string($options)) {
-      $content = $options;
-      $options = array();
-    } else $path = null;
-    
-    if(is_string($to)) {
-      $path = $to;
-      $to = null;
-    }
-    else $content = null;
-    
-    extract($options);
-    
-    $url = $this->url_for($to);
-    if(!isset($content)) {
-      if(strpos($path, '/') !== false) $content = ucfirst(substr(strrchr($path, '/'), 1));
-      else $content = ucfirst($path);
-    }
-    
-    if(!empty($path)) $path = "/".ltrim($path, '/');
-    return Html::link_tag($url.$path, $content, $attributes);
-  }
   
   /**
    * To-string conversion returns the controllers name
@@ -352,51 +384,8 @@ abstract class Controller extends TransactionController implements \ArrayAccess 
    * @access public
    * @return string
    */
-  function to_string() {
+  function __toString() {
     return $this->name();
-  }
-  
-  /**
-   * ArrayAccess::offsetSet() implementation
-   *
-   * @access public
-   * @param string $name
-   * @param mixed $value
-   */
-  function offsetSet($name, $value) {
-    return $this->assign($name, $value);
-  }
-
-  /**
-   * ArrayAccess::offsetUnset() implementation
-   *
-   * @access public
-   * @param string $name
-   */
-  function offsetUnset($name) {
-    unset($this->assignments[$name]);
-  }
-
-  /**
-   * ArrayAccess::offsetGet() implementation
-   *
-   * @access public
-   * @param string $name
-   * @return mixed
-   */
-  function offsetGet($name) {
-    return $this->obtain($name);
-  }
-
-  /**
-   * ArrayAccess::offsetExists() implementation
-   *
-   * @access public
-   * @param string $name
-   * @return boolean
-   */
-  function offsetExists($name) {
-    return array_key_exists($name, $this->assignments);
   }
 }
 ?>

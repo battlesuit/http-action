@@ -1,0 +1,1 @@
+<? assign('foo', 'bar') ?>

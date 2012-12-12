@@ -1,0 +1,1 @@
+<? append('header', '<style></style>') ?>

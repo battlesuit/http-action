@@ -1,4 +1,4 @@
-sc.http-action
+bs.http-action
 ==============
 
-HTTP Action Bundle for PHP 5.3+
+This bundle provides the Controller, Presenter and View classes

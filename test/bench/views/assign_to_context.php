@@ -1,0 +1,1 @@
+<? $this->assign('foo', 'bar') ?>
