@@ -1,5 +1,5 @@
 <?php
-namespace http\action;
+namespace http\action\controller;
 
 /**
  * Action callback container used in http\action\Controller

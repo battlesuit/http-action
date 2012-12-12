@@ -18,5 +18,9 @@ class Rendering {
   function render($options) {
     return $this->renderer->render($this->context, $options);
   }
+  
+  function partial($path, array $assignments = array()) {
+    return $this->render(array('partial' => $path));
+  }
 }
 ?>

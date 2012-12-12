@@ -1,8 +1,8 @@
 <?php
-namespace http\action;
+namespace http\action\controller;
 use http\Request;
 
-class ControllerTest extends TestUnit {
+class BaseTest extends \http\action\TestUnit {
   function boot_up() {
     require_once $this->bench_dir()."/controllers/application_controller.php";
     require_once $this->bench_dir()."/controllers/admin/accounts_controller.php";

@@ -1,6 +1,6 @@
 <?php
 namespace {
-  use http\action\Controller as ActionController;
+  use http\action\controller\Base as ActionController;
   
   class UnderscoredControllerName extends ActionController {
     

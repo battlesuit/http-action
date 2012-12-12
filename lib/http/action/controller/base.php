@@ -1,5 +1,5 @@
 <?php
-namespace http\action;
+namespace http\action\controller;
 use http\Request;
 use http\Response;
 use http\transaction\Application as Transaction;
@@ -13,7 +13,7 @@ use http\transaction\Application as Transaction;
  * @package Battlesuit
  * @subpackage http-action
  */
-abstract class Controller {
+abstract class Base {
   
   /**
    * Cached controller name created in name()
@@ -158,7 +158,7 @@ abstract class Controller {
     
     if($this->param_exists('action')) {
       $this->action = $this->param('action');
-    } else throw new \ErrorException("No action given: Please set the request data _action parameter");
+    } else throw new Error("No action given: Please set the request data _action parameter");
     
     if($this->param_exists('format')) {
       $this->format = $this->param('format');

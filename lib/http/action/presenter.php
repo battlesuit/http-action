@@ -4,7 +4,7 @@ use http\action\view\Renderer;
 use http\action\view\Base as View;
 
 /**
- * Request presentation handler
+ * Sharer of controller and view
  * Provides the render() method
  *
  * PHP Version 5.3+
@@ -13,7 +13,7 @@ use http\action\view\Base as View;
  * @package Battlesuit
  * @subpackage http-action
  */
-class Presenter extends Controller implements \ArrayAccess {
+class Presenter extends controller\Base implements \ArrayAccess {
   
   /**
    * Layout name

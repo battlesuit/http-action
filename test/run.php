@@ -9,7 +9,7 @@ namespace test_bench {
   
   class PackageTestBench extends Base {
     function initialize() {
-      $this->add_test(new \http\action\ControllerTest());
+      $this->add_test(new \http\action\controller\BaseTest());
       $this->add_test(new \http\action\PresenterTest());
       $this->add_test(new \http\action\view\renderer\TemplateRendererTest());
       

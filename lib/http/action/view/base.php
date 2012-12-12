@@ -97,12 +97,27 @@ class Base extends Context {
    */
   function evaluate($code, array $variables = array()) {
     $this->create_helpers();
+    $this->create_function('context', array($this, 'access_scope'));
     $this->create_function('assign');
     $this->create_function('obtain');
     $this->create_function('append');
     $this->create_function('assignment_exists');
+    $this->create_function('show');
     
     parent::evaluate($code, array_merge($this->assignments, $variables));
+  }
+  
+  function capture_for($name, $code, $variables = array(), $block = null) {
+    $this->append($name, $this->capture($code, $variables, $block));
+  }
+  
+  /**
+   * Directly shows(echos) a obtained value
+   *
+   * @param string $name
+   */
+  function show($name) {
+    echo $this->obtain($name);
   }
   
   /**
