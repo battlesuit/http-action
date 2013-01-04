@@ -27,7 +27,7 @@ class TemplateRenderer {
     
     if(($template_file = $this->find_template_file($file))) {
       return $this->capture_file($context, $template_file, array(), $block);
-    }
+    } else throw new Error("Template $file not found");
     
     return '';
   }
