@@ -40,8 +40,10 @@ class TemplateRenderer {
     
     if(!empty($template)) {
       $output = $this->capture_template($context, $template, $path);
-    } elseif(!empty($file) and ($template_file = $this->find_template_file($file))) {
-      $output = $this->capture_file($context, $template_file);
+    } elseif(!empty($file)) {
+      if(($template_file = $this->find_template_file($file))) {
+        $output = $this->capture_file($context, $template_file);
+      } else throw new Error("Template $file not found");
     }
 
     if(!empty($layout)) {
