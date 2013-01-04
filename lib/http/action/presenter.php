@@ -147,7 +147,7 @@ class Presenter extends controller\Base implements \ArrayAccess {
    */
   function render($options = null, array $assignments = array()) {
     if($this->rendered) {
-      throw new Error("Double render occured. View already rendered");
+      throw new Error("Double render occurred. View already rendered");
     }
 
     $context = $this->view_context();
