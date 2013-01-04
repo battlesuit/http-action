@@ -1,5 +1,6 @@
 <?php
 namespace http\action\view\renderer;
+use http\action\view\Error;
 
 class TemplateRenderer {
   private $lookup_dirs = array();
