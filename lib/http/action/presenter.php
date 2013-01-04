@@ -152,7 +152,7 @@ class Presenter extends controller\Base implements \ArrayAccess {
 
     $context = $this->view_context();
     $options = $this->prepare_render_options($options);
-  
+    
     $output = $context->renderer->render($context, $options);
     $this->rendered = true;
     return $this->rendered_output = $output;
@@ -170,7 +170,7 @@ class Presenter extends controller\Base implements \ArrayAccess {
       $options = (strpos($options, '/') !== false) ? array('file' => $options) : array('template' => $options);
     } elseif(is_null($options)) $options = array();
     
-    if(!array_key_exists('template', $options)) {
+    if(!array_key_exists('template', $options) and !array_key_exists('file', $options)) {
       $options['template'] = $this->action;
     }
     
